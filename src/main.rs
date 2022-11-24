@@ -1,83 +1,41 @@
-use chrono::{DateTime, Local};
-use fast_log::{
-    appender::{FastLogRecord, LogAppender},
-    Config,
-};
-use log::info;
-use log::Level;
-use std::{sync::mpsc::channel, time::Duration};
-use std::{
-    sync::mpsc::{Receiver, Sender},
-    thread,
-};
+use std::{sync::mpsc::channel, thread, time::Duration};
 
-pub trait Summary {
-    fn instance(&self);
-}
+use tracing::{event, Level};
+use tracing_subscriber::{self, fmt};
 
-pub struct Foo;
+struct MyWriter;
+impl std::io::Write for MyWriter {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let s = String::from_utf8_lossy(buf);
+        print!("{}", s);
+        Ok(s.len())
+    }
 
-impl Summary for Foo {
-    fn instance(&self) {
-        info!("foo instance");
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
     }
 }
-
-pub struct Bar;
-impl Summary for Bar {
-    fn instance(&self) {
-        info!("bar instance");
-    }
-}
-
-fn worker(arg: impl Summary) {
-    arg.instance();
-}
-
-pub struct CustomLog {
-    tx: Sender<String>,
-}
-impl LogAppender for CustomLog {
-    fn do_logs(&self, records: &[FastLogRecord]) {
-        for record in records {
-            let now: DateTime<Local> = chrono::DateTime::from(record.now);
-            let data;
-            match record.level {
-                Level::Warn | Level::Error => {
-                    data = format!(
-                        "{} {} {} - {}  {}",
-                        now, record.level, record.module_path, record.args, record.formated
-                    );
-                }
-                _ => {
-                    data = format!(
-                        "{} {} {} - {}",
-                        &now, record.level, record.module_path, record.args
-                    );
-                }
-            }
-            self.tx.send(data).unwrap();
-        }
-    }
+fn make_my_writer() -> impl std::io::Write {
+    MyWriter {}
 }
 
 fn main() {
-    let (tx, rx): (Sender<String>, Receiver<String>) = channel();
-    println!("Initializing fast_log...");
-    let log_tx = tx.clone();
-    let cl = CustomLog { tx: log_tx };
-    fast_log::init(Config::new().custom(cl)).unwrap();
-    thread::spawn(move || {
-        thread::sleep(Duration::from_secs(1));
-        worker(Foo);
-        thread::sleep(Duration::from_secs(1));
-        worker(Bar);
-        println!("Thread done");
-    });
-    for received in rx {
-        println!("RX: {}", received);
-    }
-    println!("Loop done");
-    log::logger().flush();
-    println!("Flushed");
+    fmt().with_writer(make_my_writer).init();
+    event!(Level::INFO, "something happened");
+    let recv = {
+        let (tx, rx) = channel();
+        let workers = 10;
+        for i in 1..workers {
+            let thread_tx = tx.clone();
+            thread::spawn(move || {
+                thread::sleep(Duration::from_millis(1500));
+                let msg = format!("hi number {} from the spawned thread!", i);
+                event!(Level::INFO, msg);
+                thread_tx.send(1).unwrap();
+            });
+        }
+        rx
+    };
+    for _x in recv {}
+    event!(Level::INFO, "All done, TTFN!");
 }
