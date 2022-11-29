@@ -5,11 +5,12 @@
 
 use tauri::{Manager, Window};
 use tracing::{event, Level};
-use tracing_subscriber::{self, fmt};
+use tracing_subscriber;
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
 fn greet(name: &str) {
+    println!("Being greeted: {}", name);
     let payload = format!("Hello, {}! You've been greeted from Rust!", name);
     event!(Level::INFO, payload);
 }
@@ -49,7 +50,11 @@ fn main() {
                     window: main_window.clone(),
                 })
             };
-            fmt().with_writer(make_my_writer).init();
+            let format = tracing_subscriber::fmt::format().json();
+            tracing_subscriber::fmt()
+                .event_format(format)
+                .with_writer(make_my_writer)
+                .init();
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![greet])
