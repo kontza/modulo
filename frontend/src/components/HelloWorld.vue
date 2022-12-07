@@ -1,46 +1,40 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { invoke } from '@tauri-apps/api'
-import { listen } from '@tauri-apps/api/event'
+  import { invoke } from '@tauri-apps/api'
+  import { listen } from '@tauri-apps/api/event'
+  import { useTracingStore } from '@/stores/trace'
 
-defineProps<{ msg: string }>()
+  defineProps<{ msg: string }>()
 
-function trigger() {
-  invoke('greet',{name: 'foo'})
-}
+  function trigger() {
+    invoke('greet', { name: 'foo' })
+  }
 
-const unlisten = await listen('TRACE', (event) => {
-  console.log('Got event: ', event)
-})
+  const tracingStore = useTracingStore()
+  const unlisten = await listen('TRACE', (evt: any) => {
+    const msg = JSON.parse(evt.payload.message)
+    tracingStore.appendTrace(msg.fields?.payload)
+  })
+  let traces = ref('Nothing to see here. Move along.')
+  tracingStore.$subscribe((mutation, state) => {
+    traces.value = state.traces.join('\n')
+  })
+  const allTraces = computed(() => traces.value)
 </script>
 
 <template>
-  <h1>{{ msg }}</h1>
-
   <div class="card">
-    <button type="button" @click="trigger">Click Me!</button>
-    <p>
-      Edit
-      <code>components/HelloWorld.vue</code> to test HMR
-    </p>
+    <button type="button" @click="trigger">Click Me!</button><br />
+    <textarea id="traces" name="traces" rows="25" cols="80" readonly>{{
+      allTraces
+    }}</textarea>
   </div>
-
-  <p>
-    Check out
-    <a href="https://vuejs.org/guide/quick-start.html#local" target="_blank"
-      >create-vue</a
-    >, the official Vue + Vite starter
-  </p>
-  <p>
-    Install
-    <a href="https://github.com/johnsoncodehk/volar" target="_blank">Volar</a>
-    in your IDE for a better DX
-  </p>
-  <p class="read-the-docs">Click on the Vite and Vue logos to learn more</p>
 </template>
 
 <style scoped>
-.read-the-docs {
-  color: #888;
-}
+  .read-the-docs {
+    color: #888;
+  }
+  textarea {
+    font-family: monospace;
+  }
 </style>

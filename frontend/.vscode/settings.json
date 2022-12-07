@@ -1,0 +1,18 @@
+{
+  "eslint.validate": ["javascript", "javascriptreact", "vue", "typescript"],
+  "i18n-ally.localesPaths": "src/locales",
+  "i18n-ally.sourceLanguage": "fi",
+  "i18n-ally.displayLanguage": "fi",
+  "i18n-ally.keystyle": "nested",
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true
+  },
+  "css.validate": false,
+  "less.validate": false,
+  "scss.validate": false,
+  "[dotenv]": {
+    "editor.defaultFormatter": "foxundermoon.shell-format"
+  }
+}
